@@ -3,6 +3,23 @@ import bcrypt
 import tkinter
 from tkinter import ttk, simpledialog
 import sv_ttk
+import os
+from cryptography.fernet import Fernet
+import random
+import string
+
+# Create key
+if os.path.exists('encryption_key.txt'):
+    # If the key file exists, read the key
+    with open('encryption_key.txt', 'rb') as file:
+        key = file.read()
+else:
+    # If the key file does not exist, generate a new key and save it to the file
+    key = Fernet.generate_key()
+    with open('encryption_key.txt', 'wb') as file:
+        file.write(key)
+
+cipher_suite = Fernet(key)
 
 # Create Database
 with sqlite3.connect("information_storage.db") as db:
@@ -133,6 +150,11 @@ def passwordVault():
         username = simpledialog.askstring('Input', 'Username:')
         password = simpledialog.askstring('Input', 'Password:', show="*")
 
+        # Encrypt the user input
+        url = cipher_suite.encrypt(url.encode())
+        username = cipher_suite.encrypt(username.encode())
+        password = cipher_suite.encrypt(password.encode())
+
         insertLogin = '''INSERT INTO passwords(url, username, password)
         VALUES(?, ?, ?)'''
 
@@ -141,9 +163,13 @@ def passwordVault():
 
         passwordVault()
     
+    def delLogin(input):
+        cursor.execute('DELETE FROM passwords WHERE id = ?', (input,))
+        db.commit()
+
+        passwordVault()
     
     def goToPayment():
-
         paymentVault()
     
     #Add info button
@@ -163,8 +189,20 @@ def passwordVault():
     label = ttk.Label(root, text='Password')
     label.grid(row=2, column=2, padx=80)
 
-    root.geometry("700x350")
+    # Display login information and delete button
+    cursor.execute('SELECT * FROM passwords')
+    result = cursor.fetchall()
+    for index, x in enumerate(result):
+        decrypted_url = cipher_suite.decrypt(x[1]).decode()
+        decrypted_username = cipher_suite.decrypt(x[2]).decode()
+        decrypted_password = cipher_suite.decrypt(x[3]).decode()
 
+        ttk.Label(root, text=decrypted_url).grid(row=index+3, column=0)
+        ttk.Label(root, text=decrypted_username).grid(row=index+3, column=1)
+        ttk.Label(root, text=decrypted_password).grid(row=index+3, column=2)
+        ttk.Button(root, text="Delete", command= lambda input=x[0]: delLogin(input)).grid(row=index+3, column=3)
+
+    root.geometry("700x350")
     label = ttk.Label(root, text="Password Vault")
     label.grid(column=1, row=0)
 
@@ -179,10 +217,23 @@ def paymentVault():
         ccv = simpledialog.askstring('Input', 'CCV:')
         expirationDate = simpledialog.askstring('Input', 'Expiration Date:')
 
+        # Encrypt the user input
+        cardName = cipher_suite.encrypt(cardName.encode())
+        cardHolder = cipher_suite.encrypt(cardHolder.encode())
+        cardNumber = cipher_suite.encrypt(cardNumber.encode())
+        ccv = cipher_suite.encrypt(ccv.encode())
+        expirationDate = cipher_suite.encrypt(expirationDate.encode())
+
         insertPayment = '''INSERT INTO payment(cardName, cardHolder, cardNumber, ccv, expirationDate)
         VALUES(?, ?, ?, ?, ?)'''
 
         cursor.execute(insertPayment, (cardName, cardHolder, cardNumber, ccv, expirationDate))
+        db.commit()
+
+        paymentVault()
+    
+    def delPayment(input):
+        cursor.execute('DELETE FROM payment WHERE id = ?', (input,))
         db.commit()
 
         paymentVault()
@@ -209,9 +260,24 @@ def paymentVault():
     label = ttk.Label(root, text='Exp Date')
     label.grid(row=2, column=4, padx=35)
 
+    #Display payment information and delete button
+    cursor.execute('SELECT * FROM payment')
+    result = cursor.fetchall()
+    for index, x in enumerate(result):
+        decrypted_cardName = cipher_suite.decrypt(x[1]).decode()
+        decrypted_cardHolder = cipher_suite.decrypt(x[2]).decode()
+        decrypted_cardNumber = cipher_suite.decrypt(x[3]).decode()
+        decrypted_ccv = cipher_suite.decrypt(x[4]).decode()
+        decrypted_expirationDate = cipher_suite.decrypt(x[5]).decode()
 
-    root.geometry("700x350")
+        ttk.Label(root, text=decrypted_cardName).grid(row=index+3, column=0)
+        ttk.Label(root, text=decrypted_cardHolder).grid(row=index+3, column=1)
+        ttk.Label(root, text=decrypted_cardNumber).grid(row=index+3, column=2)
+        ttk.Label(root, text=decrypted_ccv).grid(row=index+3, column=3)
+        ttk.Label(root, text=decrypted_expirationDate).grid(row=index+3, column=4)
+        ttk.Button(root, text="Delete", command= lambda input=x[0]: delPayment(input)).grid(row=index+3, column=5)
 
+    root.geometry("800x350")
     label = ttk.Label(root, text="Payment Vault")
     label.grid(column=2, row=0)
 
