@@ -1,12 +1,13 @@
 import sqlite3
 import bcrypt
 import tkinter
-from tkinter import ttk, simpledialog
+from tkinter import ttk, simpledialog, messagebox
 import sv_ttk
 import os
 from cryptography.fernet import Fernet
 import random
 import string
+import pyperclip
 
 # Create key
 if os.path.exists('encryption_key.txt'):
@@ -172,6 +173,22 @@ def passwordVault():
     def goToPayment():
         paymentVault()
     
+    #Generate password and copy to clipboard
+    def generatePassword():
+        length = 16
+        all_characters = string.ascii_letters + string.digits + string.punctuation
+        randomPassword = ''.join(random.choice(all_characters) for _ in range(length))
+
+        pyperclip.copy(randomPassword)
+
+        messagebox.showinfo("Password Generated", "A random password has been generated and copied to the clipboard.")
+
+    addButton = ttk.Button(root, text='*', command= generatePassword, style='Bold.TButton')
+    addButton.grid(row=0, column=3, pady=10)
+    style = ttk.Style()
+    style.configure('Bold.TButton', font=('Helvetica', 16, 'bold'))
+
+    
     #Add info button
     addButton = ttk.Button(root, text='+', command= addLogin, style='Bold.TButton')
     addButton.grid(row=0, column=0, pady=10)
@@ -203,6 +220,7 @@ def passwordVault():
         ttk.Button(root, text="Delete", command= lambda input=x[0]: delLogin(input)).grid(row=index+3, column=3)
 
     root.geometry("700x350")
+
     label = ttk.Label(root, text="Password Vault")
     label.grid(column=1, row=0)
 
