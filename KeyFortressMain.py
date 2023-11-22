@@ -55,8 +55,28 @@ CREATE TABLE IF NOT EXISTS payment (
 
 # Initialize window and set theme
 root = tkinter.Tk()
+root.iconbitmap("icon.ico")
 sv_ttk.set_theme("dark")
 root.title("KeyFortress")
+
+# Center window
+def centerWindow(root):
+    # Update window dimensions
+    root.update_idletasks()
+
+    # Get window width and height
+    window_width = root.winfo_width()
+    window_height = root.winfo_height()
+
+    # Get screen width and height
+    screen_width = root.winfo_screenwidth()
+    screen_height = root.winfo_screenheight()
+
+    # Calculate position coordinates
+    x = (screen_width/2) - (window_width/2)
+    y = (screen_height/2) - (window_height/2)
+
+    root.geometry('+%d+%d' % (x, y))
 
 # Hash and salt
 def hashMasterPassword(input):
@@ -142,14 +162,32 @@ def loginPage():
     bttn = ttk.Button(root, text="Submit", command=checkPassword)
     bttn.pack()
 
+def createTextWidget(root, text, row, column):
+    textWidget = tkinter.Text(root, height=1, width=20, borderwidth=0, font=("Helvetica", 10))
+    textWidget.insert(1.0, " " + text + " ")
+    textWidget.tag_configure("center", justify='center')
+    textWidget.tag_add("center", 1.0, "end")
+    textWidget.configure(state='disabled')
+    textWidget.grid(row=row, column=column)
+    
+     # Create a Menu widget
+    menu = tkinter.Menu(root, tearoff=0)
+    menu.add_command(label="Copy", command=lambda: root.clipboard_clear() or root.clipboard_append(textWidget.get("1.0", 'end-1c')))
+
+    # Bind the Menu to the right-click event
+    def show_menu(event):
+        menu.post(event.x_root, event.y_root)
+
+    textWidget.bind("<Button-3>", show_menu)
+
 def passwordVault():
     for widget in root.winfo_children():
         widget.destroy()
 
     def addLogin():
-        url = simpledialog.askstring('Input', 'Website URL:')
-        username = simpledialog.askstring('Input', 'Username:')
-        password = simpledialog.askstring('Input', 'Password:', show="*")
+        url = simpledialog.askstring('Add Login', 'Website URL:', parent=root)
+        username = simpledialog.askstring('Add Login', 'Username:', parent=root)
+        password = simpledialog.askstring('Add Login', 'Password:', show="*", parent=root)
 
         # Encrypt the user input
         url = cipher_suite.encrypt(url.encode())
@@ -214,12 +252,12 @@ def passwordVault():
         decrypted_username = cipher_suite.decrypt(x[2]).decode()
         decrypted_password = cipher_suite.decrypt(x[3]).decode()
 
-        ttk.Label(root, text=decrypted_url).grid(row=index+3, column=0)
-        ttk.Label(root, text=decrypted_username).grid(row=index+3, column=1)
-        ttk.Label(root, text=decrypted_password).grid(row=index+3, column=2)
+        createTextWidget(root, decrypted_url, index+3, 0)
+        createTextWidget(root, decrypted_username, index+3, 1)
+        createTextWidget(root, decrypted_password, index+3, 2)
         ttk.Button(root, text="Delete", command= lambda input=x[0]: delLogin(input)).grid(row=index+3, column=3)
 
-    root.geometry("700x350")
+    root.geometry("725x350")
 
     label = ttk.Label(root, text="Password Vault")
     label.grid(column=1, row=0)
@@ -229,11 +267,11 @@ def paymentVault():
         widget.destroy()
 
     def addPayment():
-        cardName = simpledialog.askstring('Input', 'Card Name:')
-        cardHolder = simpledialog.askstring('Input', 'Card Holder:')
-        cardNumber = simpledialog.askstring('Input', 'Card Number:')
-        ccv = simpledialog.askstring('Input', 'CCV:')
-        expirationDate = simpledialog.askstring('Input', 'Expiration Date:')
+        cardName = simpledialog.askstring('Add Payment', 'Card Name:', parent=root)
+        cardHolder = simpledialog.askstring('Add Payment', 'Card Holder:', parent=root)
+        cardNumber = simpledialog.askstring('Add Payment', 'Card Number:', parent=root)
+        ccv = simpledialog.askstring('Add Payment', 'CCV:', parent=root)
+        expirationDate = simpledialog.askstring('Add Payment', 'Expiration Date:', parent=root)
 
         # Encrypt the user input
         cardName = cipher_suite.encrypt(cardName.encode())
@@ -249,22 +287,22 @@ def paymentVault():
         db.commit()
 
         paymentVault()
-    
+
     def delPayment(input):
         cursor.execute('DELETE FROM payment WHERE id = ?', (input,))
         db.commit()
 
         paymentVault()
-    
+
     def goToPassword():
         passwordVault()
-    
-    addButton = ttk.Button(root, text='+', command= addPayment, style='Bold.TButton')
+
+    addButton = ttk.Button(root, text='+', command=addPayment, style='Bold.TButton')
     addButton.grid(row=0, column=0, pady=10)
     style = ttk.Style()
     style.configure('Bold.TButton', font=('Helvetica', 16, 'bold'))
 
-    goToPasswordButton = ttk.Button(root, text='>', command=goToPassword,style='Bold.TButton')
+    goToPasswordButton = ttk.Button(root, text='>', command=goToPassword, style='Bold.TButton')
     goToPasswordButton.grid(row=0, column=4, pady=10)
 
     label = ttk.Label(root, text='Card Name')
@@ -278,7 +316,8 @@ def paymentVault():
     label = ttk.Label(root, text='Exp Date')
     label.grid(row=2, column=4, padx=35)
 
-    #Display payment information and delete button
+
+    # Display payment information as a text widget and delete button
     cursor.execute('SELECT * FROM payment')
     result = cursor.fetchall()
     for index, x in enumerate(result):
@@ -288,21 +327,22 @@ def paymentVault():
         decrypted_ccv = cipher_suite.decrypt(x[4]).decode()
         decrypted_expirationDate = cipher_suite.decrypt(x[5]).decode()
 
-        ttk.Label(root, text=decrypted_cardName).grid(row=index+3, column=0)
-        ttk.Label(root, text=decrypted_cardHolder).grid(row=index+3, column=1)
-        ttk.Label(root, text=decrypted_cardNumber).grid(row=index+3, column=2)
-        ttk.Label(root, text=decrypted_ccv).grid(row=index+3, column=3)
-        ttk.Label(root, text=decrypted_expirationDate).grid(row=index+3, column=4)
-        ttk.Button(root, text="Delete", command= lambda input=x[0]: delPayment(input)).grid(row=index+3, column=5)
+        createTextWidget(root, decrypted_cardName, index+3, 0)
+        createTextWidget(root, decrypted_cardHolder, index+3, 1)
+        createTextWidget(root, decrypted_cardNumber, index+3, 2)
+        createTextWidget(root, decrypted_ccv, index+3, 3)
+        createTextWidget(root, decrypted_expirationDate, index+3, 4)
+        ttk.Button(root, text="Delete", command=lambda input=x[0]: delPayment(input)).grid(row=index + 3, column=5)
 
-    root.geometry("800x350")
+    root.geometry("860x350")
     label = ttk.Label(root, text="Payment Vault")
     label.grid(column=2, row=0)
+
 
 check = cursor.execute('SELECT * FROM masterpassword')
 if cursor.fetchone():
     loginPage()
 else:
     createMaster()
-
+centerWindow(root)
 root.mainloop()
